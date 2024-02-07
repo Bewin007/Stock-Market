@@ -5,7 +5,7 @@ from rest_framework import serializers
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id','name','password','email','recept_number','phone_number','bank_balance']
+        fields = ['id','name','password','email','recept_number','phone_number','bank_balance','warning','block']
         extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):
@@ -19,23 +19,24 @@ class UserSerializer(serializers.ModelSerializer):
 
 class CreateStockSerializer(serializers.ModelSerializer):
     class Meta:
-        models = Stock
+        model = Stock
         fields = '__all__'
 
 class ListStockSerializer(serializers.ModelSerializer):
     user = UserSerializer()
     class Meta:
-        models = Stock
+        model = Stock
         fields = '__all__'
 
 
 class CreateLogSerializer(serializers.ModelSerializer):
     class Meta:
-        models = Log
+        model = Log
         fields = '__all__'
 
 class ListLogSerializer(serializers.ModelSerializer):
     user = UserSerializer()
     class Meta:
-        models = Log
+        model = Log
         fields = '__all__'
+
