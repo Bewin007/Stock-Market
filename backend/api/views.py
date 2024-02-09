@@ -325,3 +325,44 @@ class AdminRemoval(APIView):
         user.save()
         return Response('Updated Sucess Fully')
 
+
+from django.contrib.auth.hashers import make_password
+from django.contrib.auth import authenticate
+from django.core.exceptions import ObjectDoesNotExist
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
+from rest_framework.permissions import IsAuthenticated
+
+from .models import User
+
+from rest_framework.response import Response
+from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_200_OK
+from rest_framework.views import APIView
+from django.contrib.auth import authenticate
+from .models import User
+
+class ChangePassword(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        # current_password = request.data.get('current_password')
+        new_password = request.data.get('new_password')
+        email = request.data.get('email')
+
+        if new_password and email:
+            user = User.objects.filter(email=email).first()
+
+            if not user:
+                return Response({'error': 'User not found.'}, status=HTTP_400_BAD_REQUEST)
+
+            # Authenticate user with current password
+            # if not authenticate(email=email, password=current_password):
+            #     return Response({'error': 'Current password is incorrect.'}, status=HTTP_400_BAD_REQUEST)
+
+            user.set_password(new_password)
+            user.save()
+
+            return Response({'message': 'Password changed successfully.'}, status=HTTP_200_OK)
+        else:
+            return Response({'error': 'Current password, new password, and email are required.'}, status=HTTP_400_BAD_REQUEST)

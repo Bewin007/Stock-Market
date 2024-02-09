@@ -12,8 +12,9 @@ urlpatterns = [
 
     path('highest',UpdateStockPricesView.as_view(), name='single-user'),
     path('richest',ForAllUpdateStockPricesView.as_view(), name='multiple-user'),
-    
+
     path('geolocation',GeoFensingChecking.as_view(), name='geo location'),
-    path('admin/remove',AdminRemoval.as_view(),name='unblock user' )
+    path('admin/remove',AdminRemoval.as_view(),name='unblock user' ),
+    path('admin/password',ChangePassword.as_view(),name='unblock user' )
 
 ]
