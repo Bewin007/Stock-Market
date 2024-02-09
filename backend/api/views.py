@@ -7,12 +7,15 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import *
 from .models import *
-from rest_framework.permissions import AllowAny,IsAuthenticated
+from rest_framework.permissions import AllowAny,IsAuthenticated,IsAdminUser
 from django.contrib.auth import authenticate
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django.db.models import Sum
 from rest_framework.pagination import PageNumberPagination
+import math
+from shapely.geometry import Point, Polygon
+from django.core.exceptions import ObjectDoesNotExist
 
 
 User = get_user_model()
@@ -30,15 +33,15 @@ class UserRegistation(APIView):
         serializers = UserSerializer(data=request.data)
         if serializers.is_valid():
             
-
             subject = request.data.get('subject', 'Sucess Full Registaion')
             message = request.data.get('message', 'We Reached ')
             from_email = 'biwinfelix@gmail.com'
             recipient_list = [request.data.get('to_email', request.data.get('email'))]
-
+            serializers.save()
+            print('User Saved')
             try:
                 send_mail(subject, message, from_email, recipient_list, fail_silently=False)
-                serializers.save()
+                
                 return Response({'detail': 'Email sent successfully'}, status=status.HTTP_200_OK)
             except Exception as e:
                 return Response({'detail': f'Failed to send email. Error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -47,15 +50,55 @@ class UserRegistation(APIView):
             
         
         else:
-            return Response('Data Missing')
+            return Response(serializers.errors)
         
-from shapely.geometry import Point, Polygon
+    def delete(self, request, pk):
+        try:
+            user = User.objects.get(pk=pk)
+            user.delete()
+            return Response({'detail': 'User deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+        except ObjectDoesNotExist:
+            return Response({'detail': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        
 
-def is_inside_geo_fence(latitude, longitude):   
-    fence_coordinates = [(10.933942, 76.737375), (10.943666, 76.737467), (10.944398, 76.748322), (10.932758, 76.747158)] 
-    point = Point(longitude, latitude)
-    polygon = Polygon(fence_coordinates)
-    return polygon.contains(point)
+# def is_inside_geo_fence(latitude, longitude):   
+#     fence_coordinates = [(10.933942, 76.737375), (10.943666, 76.737467), (10.944398, 76.748322), (10.932758, 76.747158)] 
+#     point = Point(longitude, latitude)
+#     polygon = Polygon(fence_coordinates)
+#     return polygon.contains(point)
+
+
+
+def is_inside_geo_fence(lat, long):
+    fence_points = [(10.933942, 76.737375), (10.943666, 76.737467), (10.944398, 76.748322), (10.932758, 76.747158)]
+
+    if not isinstance(lat, (float, int)):
+        raise ValueError("Latitude must be a number.")
+    if not isinstance(long, (float, int)):
+        raise ValueError("Longitude must be a number.")
+    if not isinstance(fence_points, list) or not all(isinstance(point, tuple) for point in fence_points):
+        raise ValueError("Fence points must be a list of tuples.")
+
+    lat_rad = lat * math.pi / 180
+    long_rad = long * math.pi / 180
+
+    num_intersections = 0
+    for i in range(len(fence_points)):
+        start_point = fence_points[i]
+        start_lat_rad = start_point[0] * math.pi / 180
+        start_long_rad = start_point[1] * math.pi / 180
+
+        next_point = fence_points[(i + 1) % len(fence_points)]
+        next_lat_rad = next_point[0] * math.pi / 180
+        next_long_rad = next_point[1] * math.pi / 180
+
+        dx = next_long_rad - start_long_rad
+        dy = next_lat_rad - start_lat_rad
+
+        if (dy > 0) != (dy * (long_rad - start_long_rad) - dx * (lat_rad - start_lat_rad) > 0):
+            if start_lat_rad <= lat_rad <= next_lat_rad or next_lat_rad <= lat_rad <= start_lat_rad:
+                num_intersections += 1
+    return num_intersections % 2 == 1
 
 
 class Login(APIView):
@@ -87,9 +130,9 @@ class Login(APIView):
                 return Response(response_data, status=status.HTTP_200_OK)
             else:
                 user = User.objects.get(email=email)
-                if user.warning <=2:
+                if user.warning >=2:
                     return Response('Contact Administator')
-                elif user.warning >2:
+                elif user.warning <2:
                     user.warning+=1
                     user.save()
                     return Response('You are not in the location')
@@ -99,7 +142,8 @@ class Login(APIView):
 
 
 class LogAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
     pagination_class = CustomPagination
 
     def get(self, request):
@@ -204,6 +248,7 @@ class Stock1(APIView):
 
 
 class UpdateStockPricesView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         data = request.data
         
@@ -234,6 +279,7 @@ from rest_framework.views import APIView
 User = get_user_model()
 
 class ForAllUpdateStockPricesView(APIView):
+    permission_classes = [AllowAny]
     def get_net_balance(self, user, stock_price):
         total_stock_worth = (
             user.stock_set.aggregate(total=Sum(F('stock_quantity') * stock_price))['total'] or 0
@@ -256,6 +302,7 @@ class ForAllUpdateStockPricesView(APIView):
         return Response(dict(sorted_users))
 
 
+
 class GeoFensingChecking(APIView):
     permission_classes = [IsAuthenticated]
     def post(self,request):
@@ -267,10 +314,10 @@ class GeoFensingChecking(APIView):
                 user.warning+=1
                 user.save()
                 return Response('You are not in the location')
-        return Response(False)
+        return Response(True)
             
 class AdminRemoval(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
     def post(self,request):
         user = User.objects.get(phone_number=request.data.get('phone_number'))
         user.warning -=1

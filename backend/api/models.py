@@ -5,7 +5,7 @@ from django.contrib.auth.models import AbstractUser
 class User(AbstractUser):
     name = models.CharField(max_length=100)
     recept_number = models.CharField(max_length=100,unique=True)
-    bank_balance = models.IntegerField()
+    bank_balance = models.IntegerField(blank=True)
     phone_number = models.CharField(max_length=20, blank=True, null=True, unique=True)
     email = models.EmailField(unique=True)
     warning = models.IntegerField(blank = True,default = 0)

@@ -1,31 +1,36 @@
-from shapely.geometry import Point, Polygon
+import math
 
-def is_inside_geo_fence(latitude, longitude, fence_coordinates):
-    """
-    Check if a point is inside a geo-fencing area.
+def is_point_in_fence(lat, long):
+    fence_points = [(10.933942, 76.737375), (10.943666, 76.737467), (10.944398, 76.748322), (10.932758, 76.747158)]
 
-    Args:
-    latitude (float): Latitude of the point.
-    longitude (float): Longitude of the point.
-    fence_coordinates (list of tuples): List of (latitude, longitude) tuples representing the vertices of the geo-fencing area.
+    if not isinstance(lat, (float, int)):
+        raise ValueError("Latitude must be a number.")
+    if not isinstance(long, (float, int)):
+        raise ValueError("Longitude must be a number.")
+    if not isinstance(fence_points, list) or not all(isinstance(point, tuple) for point in fence_points):
+        raise ValueError("Fence points must be a list of tuples.")
 
-    Returns:
-    bool: True if the point is inside the geo-fencing area, False otherwise.
-    """
-    # Create a shapely Point object representing the given coordinates
-    point = Point(longitude, latitude)
+    lat_rad = lat * math.pi / 180
+    long_rad = long * math.pi / 180
 
-    # Create a shapely Polygon object from the fence coordinates
-    polygon = Polygon(fence_coordinates)
+    num_intersections = 0
+    for i in range(len(fence_points)):
+        start_point = fence_points[i]
+        start_lat_rad = start_point[0] * math.pi / 180
+        start_long_rad = start_point[1] * math.pi / 180
 
-    # Check if the point is inside the polygon
-    return polygon.contains(point)
+        next_point = fence_points[(i + 1) % len(fence_points)]
+        next_lat_rad = next_point[0] * math.pi / 180
+        next_long_rad = next_point[1] * math.pi / 180
 
-# Example usage
-fence_coordinates = [(42.0, -71.0), (42.5, -71.5), (42.5, -70.5), (42.0, -70.0)]  # Example fence coordinates
+        dx = next_long_rad - start_long_rad
+        dy = next_lat_rad - start_lat_rad
 
-latitude = 42.3  # Example latitude of the point
-longitude = -71.2  # Example longitude of the point
+        if (dy > 0) != (dy * (long_rad - start_long_rad) - dx * (lat_rad - start_lat_rad) > 0):
+            if start_lat_rad <= lat_rad <= next_lat_rad or next_lat_rad <= lat_rad <= start_lat_rad:
+                num_intersections += 1
+    return num_intersections % 2 == 1
 
-inside_fence = is_inside_geo_fence(latitude, longitude, fence_coordinates)
-print("Is the point inside the geo-fencing area?", inside_fence)
+point_to_check = (10.941, 76.744) 
+in_fence = is_point_in_fence(point_to_check[0], point_to_check[1])
+print(in_fence)  
